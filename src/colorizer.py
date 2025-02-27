@@ -7,7 +7,7 @@ class MangaColorizer():
     def __init__(
             self,
             model_name: str = 'cGAN',
-            model_kwargs: dict = None,
+            model_kwargs: dict = {},
             ):
         self.device = None
         self.model_name = None
@@ -35,10 +35,8 @@ class MangaColorizer():
         if not MangaColorizer._check_supported_model(self.model_name):
             print(f"Model {self.model_name} not supported!")
             return
-        if self.model_kwargs is not None:
-            self.model = MangaColorizer.supported_models[self.model_name](**self.model_kwargs)
-        else:
-            self.model = MangaColorizer.supported_models[self.model_name]
+        self.model_kwargs['device'] = self.device
+        self.model = MangaColorizer.supported_models[self.model_name](**self.model_kwargs)
 
     def load_dataset(self, input_dir: str = None):
         if input_dir is None:
