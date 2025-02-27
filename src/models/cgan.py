@@ -159,3 +159,14 @@ class CGAN():
 
     def is_trained(self):
         return self._is_trained
+    
+    @staticmethod
+    def plot_pytorch_tensor_image(tensor_image: torch.Tensor):
+        image = tensor_image.squeeze(0) # remove first dimension
+        channels = image.size()[0]
+        if channels == 1: # black-white image
+            plt.imshow(F.to_pil_image(image))
+        elif channels == 3:
+            plt.imshow(F.to_pil_image(image)) # pytorch to matplotlib conversion
+        else:
+            print("Invalid number of channels for a tensor image!")
