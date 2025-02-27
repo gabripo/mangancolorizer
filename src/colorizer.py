@@ -58,14 +58,14 @@ class MangaColorizer():
         self.model.load_data_paths(self.input_dataset, 'image')
         self.model.train()
 
-    def infere(self, input):
+    def infere(self, input, output_dir: str = None):
         if self.model is None:
             print("No available model!")
             return
         if not self.model.is_trained():
             print("Model has not been trained!")
             return
-        return self.model.infere(input=input)
+        return self.model.infere(input=input, output_dir=output_dir)
 
     def set_model_name(self, model_name: str = None):
         if model_name is None:

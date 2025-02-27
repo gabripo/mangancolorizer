@@ -15,4 +15,4 @@ if __name__ == "__main__":
     manga_colorizer.load_model()
     manga_colorizer.train()
     manga_colorizer.train() # to test double-append prevention in model
-    manga_colorizer.infere("dummy_image_path")
+    output = manga_colorizer.infere("input/One Piece 1140 (ENG)/00000.jpg", "output")
