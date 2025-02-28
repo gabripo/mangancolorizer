@@ -4,6 +4,7 @@ import torch
 import matplotlib.pyplot as plt
 import torchvision.transforms.functional as F
 from torchvision.transforms import ToTensor
+from torch.utils.data import DataLoader
 
 from manga_colorization_v2.denoising.denoiser import FFDNetDenoiser
 from manga_colorization_v2.networks.models import Generator
@@ -78,14 +79,38 @@ class CGAN():
         if data_type not in CGAN.supported_data_types:
             print(f"Invalid data type specified {data_type} for the {self.__class__.__name__} model!")
             return
+        if self.device is None:
+            print("Invalid device where to load the dataset onto!")
+            return
         if data_type == 'image':
-            self.dataset = ImageDataset(data_paths)
+            self.dataset = ImageDataset(data_paths, device=self.device)
         print(f"Data paths loaded in {self.__class__.__name__} model!")
 
-    def train(self):
+    def train(self, num_epochs: int = 2):
         if self.dataset is None:
             print("Empty dataset: impossible to train!")
             return
+        if not isinstance(self.dataset, torch.utils.data.Dataset):
+            print("Invalid torch dataset: impossible to train!")
+        dataloader = DataLoader(self.dataset, collate_fn=self.dataset.collate_fn)
+        
+        adversarial_loss = torch.nn.BCELoss()
+        optimizer_G = torch.optim.Adam(
+            self.generator.parameters(),
+            lr=0.0002,
+            betas=(0.5, 0.999),
+            )
+        optimizer_D = torch.optim.Adam(
+            self.discriminator.parameters(),
+            lr=0.0002,
+            betas=(0.5, 0.999),
+            )
+        
+        for epoch in range(num_epochs):
+            for idx, imgs in enumerate(dataloader):
+                # TODO
+                print("epoch {epoch} - index {idx}")
+
         print(f"Model {self.__class__.__name__} trained!")
         self._is_trained = True
         pass
