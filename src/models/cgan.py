@@ -72,19 +72,23 @@ class CGAN():
             print("Invalid device specified! Impossible to load the generator!")
             return
         if self.discriminator is None:
+            # TODO same architecture as NetD in alacGAN
             self.discriminator = torch.nn.Sequential(
-                torch.nn.Conv2d(3, 64, 4, stride=2, padding=1),
+                torch.nn.Conv2d(3, 64, kernel_size=4, stride=2, padding=1),  # (887, 576) -> (443, 288)
                 torch.nn.LeakyReLU(0.2),
-                torch.nn.Conv2d(64, 128, 4, stride=2, padding=1),
+                torch.nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),  # (443, 288) -> (221, 144)
                 torch.nn.BatchNorm2d(128),
                 torch.nn.LeakyReLU(0.2),
-                torch.nn.Conv2d(128, 256, 4, stride=2, padding=1),
+                torch.nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),  # (221, 144) -> (110, 72)
                 torch.nn.BatchNorm2d(256),
                 torch.nn.LeakyReLU(0.2),
-                torch.nn.Conv2d(256, 512, 4, stride=2, padding=1),
+                torch.nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1),  # (110, 72) -> (55, 36)
                 torch.nn.BatchNorm2d(512),
                 torch.nn.LeakyReLU(0.2),
-                torch.nn.Conv2d(512, 1, 4, stride=1, padding=0),
+                torch.nn.Conv2d(512, 1024, kernel_size=4, stride=2, padding=1),  # (55, 36) -> (27, 18)
+                torch.nn.BatchNorm2d(1024),
+                torch.nn.LeakyReLU(0.2),
+                torch.nn.Conv2d(1024, 1, kernel_size=4, stride=1, padding=0),  # (27, 18) -> (24, 15)
                 torch.nn.Sigmoid()
             ).to(self.device)
 
