@@ -104,7 +104,12 @@ class CGAN():
             return
         if not isinstance(self.dataset, torch.utils.data.Dataset):
             print("Invalid torch dataset: impossible to train!")
-        dataloader = DataLoader(self.dataset, collate_fn=self.dataset.collate_fn)
+        dataloader_kwargs = {
+            'collate_fn': self.dataset.collate_fn,
+        }
+        if 'batch_size' in self.train_options.keys():
+            dataloader_kwargs['batch_size'] = self.train_options['batch_size']
+        dataloader = DataLoader(dataset=self.dataset, **dataloader_kwargs)
         
         adversarial_loss = torch.nn.BCELoss()
         optimizer_G = torch.optim.Adam(
