@@ -1,3 +1,6 @@
 [submodule "manga_colorization_v2"]
 	path = manga_colorization_v2
 	url = https://github.com/qweasdd/manga-colorization-v2.git
+[submodule "alacgan"]
+	path = alacgan
+	url = https://github.com/orashi/AlacGAN.git
