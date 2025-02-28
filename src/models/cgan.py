@@ -38,6 +38,7 @@ class CGAN():
         self.discriminator = None
 
         self.set_denoiser()
+        self.set_generator(weights_file_generator)
         self.set_discriminator()
 
     def set_denoiser(self, weights_dir: str = 'manga_colorization_v2/denoising/models'):
@@ -51,7 +52,7 @@ class CGAN():
             return
         self.denoiser = FFDNetDenoiser(self.device, _weights_dir=weights_dir_abs)
 
-    def set_colorizer(self, weights_file: str = None):
+    def set_generator(self, weights_file: str = None):
         if self.device is None:
             print("Invalid device specified! Impossible to load the generator!")
             return
@@ -99,7 +100,7 @@ class CGAN():
             print(f"Invalid input specified for inference: {input_abs_path}")
             return
         
-        self.set_colorizer('manga_colorization_v2/networks/generator.zip') # load weights of the generator
+        self.set_generator('manga_colorization_v2/networks/generator.zip') # load weights of the generator
         input_torch = self._condition_image_input(input_abs_path)
         with torch.no_grad():
             fake_color, _ = self.generator(input_torch)
