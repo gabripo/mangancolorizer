@@ -1,4 +1,5 @@
 import os
+from torch import stack
 from torch.utils.data import Dataset
 from torchvision import transforms
 from PIL import Image
@@ -8,6 +9,7 @@ class ImageDataset(Dataset):
             self,
             image_paths: list[str],
             transformation: transforms.transforms = None,
+            device: str = None,
             ):
         self.images = []
         ImageDataset.supported_image_format = {
@@ -16,6 +18,7 @@ class ImageDataset(Dataset):
             '.png',
         }
         self.transformation = transformation
+        self.device = device
 
         self._pick_images(image_paths)
     
@@ -23,7 +26,7 @@ class ImageDataset(Dataset):
         return len(self.images)
     
     def __getitem__(self, index):
-        image = Image.open(self.images[index])
+        image = Image.open(self.images[index]).convert('RGB')
         if self.transformation is not None:
             image = self.transformation(image)
         return image
@@ -40,3 +43,10 @@ class ImageDataset(Dataset):
             if fullpath not in image_paths_added: # prevent double append
                 image_paths_added.add(fullpath)
                 self.images.append(fullpath)
+
+    def collate_fn(self, images: list[Image]):
+        images_tensors = [
+            transforms.ToTensor()(image).to(self.device)
+            for image in images
+            ]
+        return stack(images_tensors)
