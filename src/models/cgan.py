@@ -10,8 +10,6 @@ from manga_colorization_v2.denoising.denoiser import FFDNetDenoiser
 from manga_colorization_v2.networks.models import Generator
 from manga_colorization_v2.utils.utils import resize_pad
 
-from alacgan.models.standard import NetD, NetI
-
 from datasets.image_dataset import ImageDataset
 
 IMAGE_SIZE_PADDING = 32
@@ -73,7 +71,21 @@ class CGAN():
             print("Invalid device specified! Impossible to load the generator!")
             return
         if self.discriminator is None:
-            self.discriminator = NetD().to(self.device)
+            self.discriminator = torch.nn.Sequential(
+                torch.nn.Conv2d(3, 64, 4, stride=2, padding=1),
+                torch.nn.LeakyReLU(0.2),
+                torch.nn.Conv2d(64, 128, 4, stride=2, padding=1),
+                torch.nn.BatchNorm2d(128),
+                torch.nn.LeakyReLU(0.2),
+                torch.nn.Conv2d(128, 256, 4, stride=2, padding=1),
+                torch.nn.BatchNorm2d(256),
+                torch.nn.LeakyReLU(0.2),
+                torch.nn.Conv2d(256, 512, 4, stride=2, padding=1),
+                torch.nn.BatchNorm2d(512),
+                torch.nn.LeakyReLU(0.2),
+                torch.nn.Conv2d(512, 1, 4, stride=1, padding=0),
+                torch.nn.Sigmoid()
+            ).to(self.device)
 
     def load_data_paths(self, data_paths: list[str], data_type: str):
         if data_type not in CGAN.supported_data_types:
