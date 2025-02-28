@@ -6,7 +6,7 @@ import torchvision.transforms.functional as F
 from torchvision.transforms import ToTensor
 
 from manga_colorization_v2.denoising.denoiser import FFDNetDenoiser
-from manga_colorization_v2.networks.models import Colorizer
+from manga_colorization_v2.networks.models import Generator
 from manga_colorization_v2.utils.utils import resize_pad
 
 IMAGE_SIZE_PADDING = 32
@@ -36,7 +36,7 @@ class CGAN():
         }
         self.denoiser = None
         self.current_pad = None
-        self.colorizer = None
+        self.generator = None
         self.weights_file_gen = None
 
         self.set_denoiser()
@@ -55,18 +55,18 @@ class CGAN():
 
     def set_colorizer(self, weights_file: str = None):
         if self.device is None:
-            print("Invalid device specified! Impossible to load the colorizer!")
+            print("Invalid device specified! Impossible to load the generator!")
             return
-        if self.colorizer is None:
-            self.colorizer = Colorizer().to(self.device)
+        if self.generator is None:
+            self.generator = Generator().to(self.device)
 
         if weights_file is not None:
             weights_file_abs = os.path.abspath(weights_file)
             if not os.path.exists(weights_file_abs):
-                print(f"Impossible to load weights for the generator in colorizer: invalid weights file {weights_file_abs}")
+                print(f"Impossible to load weights for the generator in generator: invalid weights file {weights_file_abs}")
                 return
             self.weights_file_gen = weights_file_abs
-            self.colorizer.generator.load_state_dict(torch.load(self.weights_file_gen, map_location=self.device))
+            self.generator.load_state_dict(torch.load(self.weights_file_gen, map_location=self.device))
 
     def load_data_paths(self, data_paths: list[str], data_type: str):
         if data_type not in CGAN.supported_data_types.keys():
@@ -105,7 +105,7 @@ class CGAN():
         self.set_colorizer('manga_colorization_v2/networks/generator.zip') # load weights of the generator
         input_torch = self._condition_image_input(input_abs_path)
         with torch.no_grad():
-            fake_color, _ = self.colorizer(input_torch)
+            fake_color, _ = self.generator(input_torch)
             fake_color = fake_color.detach()
         # CGAN.plot_pytorch_tensor_image(fake_color)
         output = self._condition_image_output(fake_color)
