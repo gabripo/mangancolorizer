@@ -9,6 +9,8 @@ from manga_colorization_v2.denoising.denoiser import FFDNetDenoiser
 from manga_colorization_v2.networks.models import Generator
 from manga_colorization_v2.utils.utils import resize_pad
 
+from alacgan.models.standard import NetD, NetI
+
 from datasets.image_dataset import ImageDataset
 
 IMAGE_SIZE_PADDING = 32
@@ -33,9 +35,10 @@ class CGAN():
         self.current_pad = None
         self.generator = None
         self.weights_file_gen = None
+        self.discriminator = None
 
         self.set_denoiser()
-        self.set_colorizer(weights_file_generator)
+        self.set_discriminator()
 
     def set_denoiser(self, weights_dir: str = 'manga_colorization_v2/denoising/models'):
         # TODO move weights in main repo
@@ -62,6 +65,13 @@ class CGAN():
                 return
             self.weights_file_gen = weights_file_abs
             self.generator.load_state_dict(torch.load(self.weights_file_gen, map_location=self.device))
+
+    def set_discriminator(self):
+        if self.device is None:
+            print("Invalid device specified! Impossible to load the generator!")
+            return
+        if self.discriminator is None:
+            self.discriminator = NetD().to(self.device)
 
     def load_data_paths(self, data_paths: list[str], data_type: str):
         if data_type not in CGAN.supported_data_types:
