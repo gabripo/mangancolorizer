@@ -2,6 +2,7 @@ import os
 import random
 import torch
 import matplotlib.pyplot as plt
+import numpy
 import torchvision.transforms.functional as F
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
@@ -143,7 +144,7 @@ class CGAN():
             return
         
         self.set_generator('manga_colorization_v2/networks/generator.zip') # load weights of the generator
-        input_torch = self._condition_image_input(input_abs_path)
+        input_torch = self._condition_image_input_path(input_abs_path)
         with torch.no_grad():
             fake_color, _ = self.generator(input_torch)
             fake_color = fake_color.detach()
@@ -162,30 +163,40 @@ class CGAN():
             plt.imsave(output_path, output)
         return output
 
-    def _condition_image_input(self, image_path: str, size = 576, apply_denoise = True, denoise_sigma = 25):
+    def _condition_image_input_path(self, image_path: str, size = 576, apply_denoise = True, denoise_sigma = 25):
         image = plt.imread(image_path)
         if image is None:
             print(f"Impossible to read the image {image_path}")
             return
+        return self._condition_image_input(image, size, apply_denoise, denoise_sigma)
+    
+    def _condition_image_input(self, image: numpy.ndarray, size = 576, apply_denoise = True, denoise_sigma = 25):
         if size % IMAGE_SIZE_PADDING != 0:
             print(f"Specified size to condition image {size} is not divisible by {IMAGE_SIZE_PADDING}: impossible to process the image with CNNs!")
-            return
+            return 
 
         if apply_denoise:
             if self.denoiser is None:
-                print(f"Invalid denoiser! The image {image_path} will not be processed!")
+                print(f"Invalid denoiser! The image will not be processed!")
             else:
                 image = self.denoiser.get_denoised_image(image, sigma=denoise_sigma)
 
         image, self.current_pad = resize_pad(image, size)
         
-        tensor_transformer = ToTensor()
-        image_torch = tensor_transformer(image).unsqueeze(0).to(self.device)
+        image_torch = self._image_to_torch(image)
 
         height, width = image_torch.shape[2], image_torch.shape[3]
         blank_torch = torch.zeros(1, 4, height, width).float().to(self.device)
 
         return torch.cat([image_torch, blank_torch], 1)
+    
+    def _image_to_torch(self, image_plt: numpy.ndarray, unsqueeze = True):
+        tensor_transformer = ToTensor()
+        if unsqueeze:
+            image_torch = tensor_transformer(image_plt).unsqueeze(0).to(self.device)
+        else:
+            image_torch = tensor_transformer(image_plt).to(self.device)
+        return image_torch
     
     def _condition_image_output(self, image):
         result = image[0].detach().cpu().permute(1, 2, 0) * 0.5 + 0.5 # permute() for matplotlib convention
