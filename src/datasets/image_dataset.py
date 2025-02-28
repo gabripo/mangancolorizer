@@ -1,15 +1,21 @@
 import os
 from torch.utils.data import Dataset
+from torchvision import transforms
 from PIL import Image
 
 class ImageDataset(Dataset):
-    def __init__(self, image_paths: list[str]):
+    def __init__(
+            self,
+            image_paths: list[str],
+            transformation: transforms.transforms = None,
+            ):
         self.images = []
         ImageDataset.supported_image_format = {
             '.jpeg',
             '.jpg',
             '.png',
         }
+        self.transformation = transformation
 
         self._pick_images(image_paths)
     
@@ -18,6 +24,8 @@ class ImageDataset(Dataset):
     
     def __getitem__(self, index):
         image = Image.open(self.images[index])
+        if self.transformation is not None:
+            image = self.transformation(image)
         return image
     
     def _pick_images(self, image_paths: list[str]):
