@@ -9,7 +9,7 @@ if __name__ == "__main__":
         }
     )
 
-    input_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'input')
+    input_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'dataset')
     manga_colorizer.load_dataset(input_dir)
 
     manga_colorizer.load_model()
