@@ -27,7 +27,7 @@ class CGAN():
         self.dataset = None
         self.device = device if device in {'cpu', 'gpu', 'mps'} else None
         self.train_options = {
-            'batch_size': 10,
+            'batch_size': 1,
             'epochs': 10,
             'latent_size': latent_dim_size,
         }
@@ -130,12 +130,60 @@ class CGAN():
         
         for epoch in range(num_epochs):
             for idx, imgs in enumerate(dataloader):
-                # TODO
-                print("epoch {epoch} - index {idx}")
+                batch_size = imgs.size(0)
+                img_height = imgs.size(2)
+                img_width = imgs.size(3)
+                print(f"epoch {epoch} - index {idx} - batch size {batch_size} - (width, height) ({img_width}, {img_height})")
+                # Train discriminator
+                optimizer_D.zero_grad()
+                outputs = self.discriminator(imgs)
+                real_labels = torch.ones(batch_size, 1, outputs.size(2), outputs.size(3)).to(self.device) # real is labeled as 1
+                d_loss_real = adversarial_loss(outputs, real_labels)
+
+                # TODO currently working for batch_size = 1 only, to be extended
+                z = torch.cat([
+                    self._condition_image_input(self.generate_randn_image(img_height, img_width))
+                    for _ in range(batch_size)
+                    ]).to(self.device)
+                outputs, _ = self.generator(z)
+                outputs.detach()
+                fake_imgs = self._condition_image_output(outputs)
+                outputs = self.discriminator(self._image_to_torch(fake_imgs))
+                fake_labels = torch.zeros(batch_size, 1, outputs.size(2), outputs.size(3)).to(self.device) # fake is labeled as 0
+                d_loss_fake = adversarial_loss(outputs, fake_labels)
+
+                d_loss = d_loss_real + d_loss_fake
+                d_loss.backward()
+                optimizer_D.step()
+
+                # Train generator
+                optimizer_G.zero_grad()
+                # TODO currently working for batch_size = 1 only, to be extended
+                z = torch.cat([
+                    self._condition_image_input(self.generate_randn_image(img_height, img_width))
+                    for _ in range(batch_size)
+                    ]).to(self.device)
+                outputs, _ = self.generator(z)
+                outputs.detach()
+                fake_imgs = self._condition_image_output(outputs)
+                outputs = self.discriminator(self._image_to_torch(fake_imgs))
+
+                real_labels = torch.ones(batch_size, 1, outputs.size(2), outputs.size(3)).to(self.device) # real is labeled as 1
+                g_loss = adversarial_loss(outputs, real_labels)
+                g_loss.backward()
+                optimizer_G.step()
+            
+            print(f'Epoch [{epoch+1}/{num_epochs}], d_loss: {d_loss.item()}, g_loss: {g_loss.item()}')
+                
 
         print(f"Model {self.__class__.__name__} trained!")
         self._is_trained = True
         pass
+
+    @staticmethod
+    def generate_randn_image(img_height: int, img_width: int, num_channels: int = 3):
+        rand_img = numpy.random.randn(img_height, img_width, num_channels).astype(numpy.float32)
+        return rand_img
 
     def infere(self, input: str = None, output_dir: str = None):
         # TODO - implement, both for single image and for image folder
