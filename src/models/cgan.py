@@ -11,7 +11,7 @@ from manga_colorization_v2.denoising.denoiser import FFDNetDenoiser
 from manga_colorization_v2.networks.models import Generator
 from manga_colorization_v2.utils.utils import resize_pad
 
-from datasets.image_dataset import ImageDataset
+from src.datasets.image_dataset import ImageDataset
 
 IMAGE_SIZE_PADDING = 32
 
@@ -276,3 +276,123 @@ class CGAN():
             plt.imshow(F.to_pil_image(image)) # pytorch to matplotlib conversion
         else:
             print("Invalid number of channels for a tensor image!")
+
+
+
+'''https://github.com/orashi/AlacGAN/blob/master/models/standard.py'''
+class ResNeXtBottleneck(torch.nn.Module):
+    def __init__(self, in_channels=256, out_channels=256, stride=1, cardinality=32, dilate=1):
+        super(ResNeXtBottleneck, self).__init__()
+        D = out_channels // 2
+        self.out_channels = out_channels
+        self.conv_reduce = torch.nn.Conv2d(in_channels, D, kernel_size=1, stride=1, padding=0, bias=False)
+        self.conv_conv = torch.nn.Conv2d(D, D, kernel_size=2 + stride, stride=stride, padding=dilate, dilation=dilate,
+                                   groups=cardinality,
+                                   bias=False)
+        self.conv_expand = torch.nn.Conv2d(D, out_channels, kernel_size=1, stride=1, padding=0, bias=False)
+        self.shortcut = torch.nn.Sequential()
+        if stride != 1:
+            self.shortcut.add_module('shortcut',
+                                     torch.nn.AvgPool2d(2, stride=2))
+
+    def forward(self, x):
+        bottleneck = self.conv_reduce.forward(x)
+        bottleneck = torch.nn.functional.leaky_relu(bottleneck, 0.2, True)
+        bottleneck = self.conv_conv.forward(bottleneck)
+        bottleneck = torch.nn.functional.leaky_relu(bottleneck, 0.2, True)
+        bottleneck = self.conv_expand.forward(bottleneck)
+        x = self.shortcut.forward(x)
+        return x + bottleneck
+
+class NetD(torch.nn.Module):
+    def __init__(self, ndf=64):
+        super(NetD, self).__init__()
+
+        self.feed = torch.nn.Sequential(torch.nn.Conv2d(3, ndf, kernel_size=7, stride=1, padding=3, bias=False),  # 512
+                                  torch.nn.LeakyReLU(0.2, True),
+                                  torch.nn.Conv2d(ndf, ndf, kernel_size=4, stride=2, padding=1, bias=False),  # 256
+                                  torch.nn.LeakyReLU(0.2, True),
+
+                                  ResNeXtBottleneck(ndf, ndf, cardinality=8, dilate=1),
+                                  ResNeXtBottleneck(ndf, ndf, cardinality=8, dilate=1, stride=2),  # 128
+                                  torch.nn.Conv2d(ndf, ndf * 2, kernel_size=1, stride=1, padding=0, bias=False),
+                                  torch.nn.LeakyReLU(0.2, True),
+
+                                  ResNeXtBottleneck(ndf * 2, ndf * 2, cardinality=8, dilate=1),
+                                  ResNeXtBottleneck(ndf * 2, ndf * 2, cardinality=8, dilate=1, stride=2),  # 64
+                                  torch.nn.Conv2d(ndf * 2, ndf * 4, kernel_size=1, stride=1, padding=0, bias=False),
+                                  torch.nn.LeakyReLU(0.2, True),
+
+                                  ResNeXtBottleneck(ndf * 4, ndf * 4, cardinality=8, dilate=1),
+                                  ResNeXtBottleneck(ndf * 4, ndf * 4, cardinality=8, dilate=1, stride=2)  # 32
+                                  )
+
+        self.feed2 = torch.nn.Sequential(torch.nn.Conv2d(ndf * 12, ndf * 8, kernel_size=3, stride=1, padding=1, bias=False),  # 32
+                                   torch.nn.LeakyReLU(0.2, True),
+                                   ResNeXtBottleneck(ndf * 8, ndf * 8, cardinality=8, dilate=1),
+                                   ResNeXtBottleneck(ndf * 8, ndf * 8, cardinality=8, dilate=1, stride=2),  # 16
+                                   ResNeXtBottleneck(ndf * 8, ndf * 8, cardinality=8, dilate=1),
+                                   ResNeXtBottleneck(ndf * 8, ndf * 8, cardinality=8, dilate=1, stride=2),  # 8
+                                   ResNeXtBottleneck(ndf * 8, ndf * 8, cardinality=8, dilate=1),
+                                   ResNeXtBottleneck(ndf * 8, ndf * 8, cardinality=8, dilate=1, stride=2),  # 4
+                                   ResNeXtBottleneck(ndf * 8, ndf * 8, cardinality=8, dilate=1),
+                                   torch.nn.Conv2d(ndf * 8, ndf * 8, kernel_size=4, stride=1, padding=0, bias=False),  # 1
+                                   torch.nn.LeakyReLU(0.2, True)
+                                   )
+
+        self.out = torch.nn.Linear(512, 1)
+
+    def forward(self, color, sketch_feat):
+        x = self.feed(color)
+
+        x = self.feed2(torch.cat([x, sketch_feat], 1))
+
+        out = self.out(x.view(color.size(0), -1))
+        return out
+
+class NetI(torch.nn.Module):
+    def __init__(self):
+        super(NetI, self).__init__()
+        i2v_model = torch.nn.Sequential(  # Sequential,
+            torch.nn.Conv2d(3, 64, (3, 3), (1, 1), (1, 1)),
+            torch.nn.ReLU(True),
+            torch.nn.MaxPool2d((2, 2), (2, 2), (0, 0), ceil_mode=True),
+            torch.nn.Conv2d(64, 128, (3, 3), (1, 1), (1, 1)),
+            torch.nn.ReLU(True),
+            torch.nn.MaxPool2d((2, 2), (2, 2), (0, 0), ceil_mode=True),
+            torch.nn.Conv2d(128, 256, (3, 3), (1, 1), (1, 1)),
+            torch.nn.ReLU(True),
+            torch.nn.Conv2d(256, 256, (3, 3), (1, 1), (1, 1)),
+            torch.nn.ReLU(True),
+            torch.nn.MaxPool2d((2, 2), (2, 2), (0, 0), ceil_mode=True),
+            torch.nn.Conv2d(256, 512, (3, 3), (1, 1), (1, 1)),
+            torch.nn.ReLU(True),
+            torch.nn.Conv2d(512, 512, (3, 3), (1, 1), (1, 1)),
+            torch.nn.ReLU(True),
+            torch.nn.MaxPool2d((2, 2), (2, 2), (0, 0), ceil_mode=True),
+            torch.nn.Conv2d(512, 512, (3, 3), (1, 1), (1, 1)),
+            torch.nn.ReLU(True),
+            torch.nn.Conv2d(512, 512, (3, 3), (1, 1), (1, 1)),
+            torch.nn.ReLU(True),
+            torch.nn.MaxPool2d((2, 2), (2, 2), (0, 0), ceil_mode=True),
+            torch.nn.Conv2d(512, 1024, (3, 3), (1, 1), (1, 1)),
+            torch.nn.ReLU(True),
+            torch.nn.Conv2d(1024, 1024, (3, 3), (1, 1), (1, 1)),
+            torch.nn.ReLU(True),
+            torch.nn.Conv2d(1024, 1024, (3, 3), (1, 1), (1, 1)),
+            torch.nn.ReLU(True),
+            torch.nn.Dropout(0.5),
+            torch.nn.Conv2d(1024, 1539, (3, 3), (1, 1), (1, 1)),
+            torch.nn.AvgPool2d((7, 7), (1, 1), (0, 0), ceil_mode=True),  # AvgPool2d,
+        )
+        # i2v_model.load_state_dict(torch.load(I2V_PATH))
+        i2v_model = torch.nn.Sequential(
+            *list(i2v_model.children())[:15]
+        )
+        self.model = i2v_model
+        self.register_buffer('mean', torch.FloatTensor([164.76139251, 167.47864617, 181.13838569]).view(1, 3, 1, 1))
+
+    def forward(self, images):
+        images = F.avg_pool2d(images, 2, 2)
+        images = images.mul(0.5).add(0.5).mul(255)
+        return self.model(images.expand(-1, 3, 256, 256) - self.mean)
