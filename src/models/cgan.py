@@ -146,6 +146,7 @@ class CGAN():
                     for _ in range(batch_size)
                     ]).to(self.device)
                 outputs, _ = self.generator(z)
+                # TODO - check why torch.mps.driver_allocated_memory() explodes after this
                 outputs.detach()
                 fake_imgs = self._condition_image_output(outputs)
                 outputs = self.discriminator(self._image_to_torch(fake_imgs))
@@ -172,6 +173,8 @@ class CGAN():
                 g_loss = adversarial_loss(outputs, real_labels)
                 g_loss.backward()
                 optimizer_G.step()
+
+                torch.mps.empty_cache() # freeing up device memory
             
             print(f'Epoch [{epoch+1}/{num_epochs}], d_loss: {d_loss.item()}, g_loss: {g_loss.item()}')
                 
