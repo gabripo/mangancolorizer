@@ -9,6 +9,8 @@ from manga_colorization_v2.denoising.denoiser import FFDNetDenoiser
 from manga_colorization_v2.networks.models import Generator
 from manga_colorization_v2.utils.utils import resize_pad
 
+from datasets.image_dataset import ImageDataset
+
 IMAGE_SIZE_PADDING = 32
 
 class CGAN():
@@ -19,15 +21,8 @@ class CGAN():
             latent_dim_size: int = 10
             ):
         self._is_trained = False
-        CGAN.supported_image_format = {
-            '.jpeg',
-            '.jpg',
-            '.png',
-        }
-        CGAN.supported_data_types = {
-            'image': CGAN.supported_image_format,
-            }
-        self.data_paths = []
+        CGAN.supported_data_types = {'image'}
+        self.dataset = None
         self.device = device if device in {'cpu', 'gpu', 'mps'} else None
         self.train_options = {
             'batch_size': 10,
@@ -69,25 +64,17 @@ class CGAN():
             self.generator.load_state_dict(torch.load(self.weights_file_gen, map_location=self.device))
 
     def load_data_paths(self, data_paths: list[str], data_type: str):
-        if data_type not in CGAN.supported_data_types.keys():
+        if data_type not in CGAN.supported_data_types:
             print(f"Invalid data type specified {data_type} for the {self.__class__.__name__} model!")
             return
-        
-        data_paths_added = set(self.data_paths)
-        for path in data_paths:
-            _, fext = os.path.splitext(path)
-            if fext not in CGAN.supported_data_types[data_type]:
-                print(f"File {path} has an unsupported format and will be skipped.")
-                continue
-
-            fullpath = os.path.abspath(path)
-            if fullpath not in data_paths_added: # prevent double append
-                data_paths_added.add(fullpath)
-                self.data_paths.append(fullpath)
+        if data_type == 'image':
+            self.dataset = ImageDataset(data_paths)
         print(f"Data paths loaded in {self.__class__.__name__} model!")
 
     def train(self):
-        # TODO - implement
+        if self.dataset is None:
+            print("Empty dataset: impossible to train!")
+            return
         print(f"Model {self.__class__.__name__} trained!")
         self._is_trained = True
         pass
