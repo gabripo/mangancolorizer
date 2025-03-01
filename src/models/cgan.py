@@ -140,7 +140,6 @@ class CGAN():
 
                 # Train generator
                 optimizer_G.zero_grad()
-                # TODO currently working for batch_size = 1 only, to be extended
                 z = self._generate_random_images(img_height, img_width, batch_size)
                 outputs, _ = self.generator(z)
                 fake_imgs = self._from_generator_output_to_images(outputs)
