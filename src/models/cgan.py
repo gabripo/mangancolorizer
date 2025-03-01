@@ -125,7 +125,8 @@ class CGAN():
                 real_labels = torch.ones(batch_size, 1).to(self.device) # real is labeled as 1
                 d_loss_real = adversarial_loss(outputs, real_labels)
 
-                z = self._generate_random_images(img_height, img_width, batch_size)
+                randn_images = self.generate_randn_images(img_height, img_width, num_images=batch_size)
+                z = self._from_images_to_generator_input(randn_images)
                 outputs, _ = self.generator(z)
                 # TODO - check why torch.mps.driver_allocated_memory() explodes after this
                 fake_imgs = self._from_generator_output_to_images(outputs)
@@ -141,7 +142,8 @@ class CGAN():
 
                 # Train generator
                 optimizer_G.zero_grad()
-                z = self._generate_random_images(img_height, img_width, batch_size)
+                randn_images = self.generate_randn_images(img_height, img_width, num_images=batch_size)
+                z = self._from_images_to_generator_input(randn_images)
                 outputs, _ = self.generator(z)
                 fake_imgs = self._from_generator_output_to_images(outputs)
                 outputs = self.discriminator(fake_imgs)
@@ -176,18 +178,22 @@ class CGAN():
         return images_torch
 
 
-    def _generate_random_images(self, img_height: int, img_width: int, num_images: int = 1):
-        rand_images = [self.generate_randn_image(img_height, img_width) for _ in range(num_images)]
+    def _from_images_to_generator_input(self, images: list[numpy.ndarray], device: str = None):
+        if device is None:
+            device = self.device
         z = torch.cat([
-                self._condition_image_input(rand_img)
-                for rand_img in rand_images
+                self._condition_image_input(img)
+                for img in images
                 ]).to(self.device)
         return z
 
     @staticmethod
-    def generate_randn_image(img_height: int, img_width: int, num_channels: int = 3):
-        rand_img = numpy.random.randn(img_height, img_width, num_channels).astype(numpy.float32)
-        return rand_img
+    def generate_randn_images(img_height: int, img_width: int, num_channels: int = 3, num_images: int = 1):
+        rand_images = [
+            numpy.random.randn(img_height, img_width, num_channels).astype(numpy.float32)
+            for _ in range(num_images)
+            ]
+        return rand_images
     
     def _empty_device_cache(self):
         if self.device == 'cuda':
