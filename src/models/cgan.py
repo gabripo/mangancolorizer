@@ -118,7 +118,7 @@ class CGAN():
                 batch_size = imgs.size(0)
                 img_height = imgs.size(2)
                 img_width = imgs.size(3)
-                print(f"epoch {epoch} - index {idx} - batch size {batch_size} - (width, height) ({img_width}, {img_height})")
+                print(f"epoch {epoch+1} - index {idx} - batch size {batch_size} - (width, height) ({img_width}, {img_height})")
                 # Train discriminator
                 optimizer_D.zero_grad()
                 outputs = self.discriminator(imgs)
