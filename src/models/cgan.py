@@ -4,6 +4,7 @@ import torch
 import matplotlib.pyplot as plt
 import numpy
 import zipfile
+import json
 import torchvision.transforms.functional as F
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
@@ -88,7 +89,7 @@ class CGAN():
             self.dataset = ImageDataset(data_paths, device=self.device)
         print(f"Data paths loaded in {self.__class__.__name__} model!")
 
-    def train(self, num_epochs: int = 2, save_weights: bool = True):
+    def train(self, num_epochs: int = 2, save_weights: bool = True, save_losses: bool = True):
         if self.dataset is None:
             print("Empty dataset: impossible to train!")
             return
@@ -113,6 +114,10 @@ class CGAN():
             betas=(0.5, 0.999),
             )
         
+        losses = {
+            'discriminator': {'epoch': [], 'real': [], 'fake': [], 'total': []},
+            'generator': {'epoch': [], 'total': []}
+            }
         for epoch in range(num_epochs):
             for idx, imgs in enumerate(dataloader):
                 batch_size = imgs.size(0)
@@ -137,6 +142,10 @@ class CGAN():
                 d_loss = d_loss_real + d_loss_fake
                 d_loss.backward()
                 optimizer_D.step()
+                losses['discriminator']['epoch'].append(epoch+1)
+                losses['discriminator']['real'].append(d_loss_real.cpu().detach().numpy())
+                losses['discriminator']['fake'].append(d_loss_fake.cpu().detach().numpy())
+                losses['discriminator']['total'].append(losses['discriminator']['real'][-1] + losses['discriminator']['fake'][-1])
                 print(f"Loss for discriminator: {d_loss} (real {d_loss} | fake {d_loss_fake})")
                 self._empty_device_cache()
 
@@ -152,10 +161,17 @@ class CGAN():
 
                 g_loss.backward()
                 optimizer_G.step()
+                losses['generator']['epoch'].append(epoch+1)
+                losses['generator']['total'].append(g_loss.cpu().detach().numpy())
                 print(f"Loss for generator: {g_loss}")
                 self._empty_device_cache()
-            
+
             print(f'Epoch [{epoch+1}/{num_epochs}], d_loss: {d_loss.item()}, g_loss: {g_loss.item()}')
+
+            if save_losses:
+                losses_json_path = os.path.join(os.getcwd(), 'losses.json')
+                with open(losses_json_path, 'w') as json_file:
+                    json.dump(losses, json_file, default=CGAN.numpy_serializer, indent=4)
 
             if save_weights:
                 self.save_weights(epoch=epoch)
@@ -163,6 +179,14 @@ class CGAN():
         print(f"Model {self.__class__.__name__} trained!")
         self._is_trained = True
         pass
+
+    @staticmethod
+    def numpy_serializer(obj):
+        if isinstance(obj, numpy.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, numpy.generic):
+            return obj.item()
+        raise TypeError(f"Type {type(obj)} not serializable")
 
     def save_weights(self, epoch: int = None):
         save_folder = os.path.join(os.getcwd(), 'weights')

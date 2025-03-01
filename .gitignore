@@ -5,3 +5,5 @@ dataset/
 input/
 output/
 weights/
+
+losses.json
