@@ -3,6 +3,7 @@ import random
 import torch
 import matplotlib.pyplot as plt
 import numpy
+import zipfile
 import torchvision.transforms.functional as F
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
@@ -86,7 +87,7 @@ class CGAN():
             self.dataset = ImageDataset(data_paths, device=self.device)
         print(f"Data paths loaded in {self.__class__.__name__} model!")
 
-    def train(self, num_epochs: int = 2):
+    def train(self, num_epochs: int = 2, save_weights: bool = True):
         if self.dataset is None:
             print("Empty dataset: impossible to train!")
             return
@@ -151,6 +152,14 @@ class CGAN():
                 self._empty_device_cache()
             
             print(f'Epoch [{epoch+1}/{num_epochs}], d_loss: {d_loss.item()}, g_loss: {g_loss.item()}')
+
+            if save_weights:
+                torch.save(self.generator.state_dict(), 'fine_tuned_generator_weights.pth')
+                torch.save(self.discriminator.state_dict(), 'fine_tuned_discriminator_weights.pth')
+
+                with zipfile.ZipFile('fine_tuned_model_weights.zip', 'w') as zipf:
+                    zipf.write('fine_tuned_generator_weights.pth')
+                    zipf.write('fine_tuned_discriminator_weights.pth')
                 
 
         print(f"Model {self.__class__.__name__} trained!")
