@@ -27,7 +27,7 @@ class CGAN():
         self._is_trained = False
         CGAN.supported_data_types = {'image'}
         self.dataset = None
-        self.device = device if device in {'cpu', 'gpu', 'mps'} else None
+        self.device = device if device in {'cpu', 'cuda', 'mps'} else None
         self.train_options = {
             'batch_size': 1,
             'epochs': 10,
