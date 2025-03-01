@@ -143,8 +143,8 @@ class CGAN():
                 z = self._generate_random_images(img_height, img_width, batch_size)
                 outputs, _ = self.generator(z)
                 # TODO - check why torch.mps.driver_allocated_memory() explodes after this
-                fake_imgs = [self._condition_image_output(g_output.unsqueeze(0)) for g_output in outputs]
-                outputs = self.discriminator(self._image_to_torch(fake_imgs))
+                fake_imgs = self._from_generator_output_to_images(outputs)
+                outputs = self.discriminator(fake_imgs)
                 fake_labels = torch.zeros(batch_size, 1, outputs.size(2), outputs.size(3)).to(self.device) # fake is labeled as 0
                 d_loss_fake = adversarial_loss(outputs, fake_labels)
 
@@ -157,8 +157,8 @@ class CGAN():
                 # TODO currently working for batch_size = 1 only, to be extended
                 z = self._generate_random_images(img_height, img_width, batch_size)
                 outputs, _ = self.generator(z)
-                fake_imgs = [self._condition_image_output(g_output.unsqueeze(0)) for g_output in outputs]
-                outputs = self.discriminator(self._image_to_torch(fake_imgs))
+                fake_imgs = self._from_generator_output_to_images(outputs)
+                outputs = [self.discriminator(self._image_to_torch(img)) for img in fake_imgs]
 
                 real_labels = torch.ones(batch_size, 1, outputs.size(2), outputs.size(3)).to(self.device) # real is labeled as 1
                 g_loss = adversarial_loss(outputs, real_labels)
@@ -174,7 +174,15 @@ class CGAN():
         self._is_trained = True
         pass
 
-    def _generate_random_images(self, img_height: int, img_width: int, num_images: int):
+    def _from_generator_output_to_images(self, generator_outputs: torch.Tensor, device: str = None):
+        if device is None:
+            device = self.device
+        images = [self._condition_image_output(output.unsqueeze(0)) for output in generator_outputs]
+        images_torch = torch.cat([self._image_to_torch(img) for img in images]).to(device)
+        return images_torch
+
+
+    def _generate_random_images(self, img_height: int, img_width: int, num_images: int = 1):
         rand_images = [self.generate_randn_image(img_height, img_width) for _ in range(num_images)]
         z = torch.cat([
                 self._condition_image_input(rand_img)
