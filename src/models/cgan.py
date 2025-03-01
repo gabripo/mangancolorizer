@@ -134,6 +134,7 @@ class CGAN():
                 d_loss = d_loss_real + d_loss_fake
                 d_loss.backward()
                 optimizer_D.step()
+                self._empty_device_cache()
 
                 # Train generator
                 optimizer_G.zero_grad()
@@ -147,8 +148,7 @@ class CGAN():
 
                 g_loss.backward()
                 optimizer_G.step()
-
-                torch.mps.empty_cache() # freeing up device memory
+                self._empty_device_cache()
             
             print(f'Epoch [{epoch+1}/{num_epochs}], d_loss: {d_loss.item()}, g_loss: {g_loss.item()}')
                 
@@ -177,6 +177,12 @@ class CGAN():
     def generate_randn_image(img_height: int, img_width: int, num_channels: int = 3):
         rand_img = numpy.random.randn(img_height, img_width, num_channels).astype(numpy.float32)
         return rand_img
+    
+    def _empty_device_cache(self):
+        if self.device == 'cuda':
+            torch.cuda.empty_cache()
+        elif self.device == 'mps':
+            torch.mps.empty_cache
 
     def infere(self, input: str = None, output_dir: str = None):
         # TODO - implement, both for single image and for image folder
