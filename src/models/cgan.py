@@ -141,14 +141,10 @@ class CGAN():
                 d_loss_real = adversarial_loss(outputs, real_labels)
 
                 # TODO currently working for batch_size = 1 only, to be extended
-                z = torch.cat([
-                    self._condition_image_input(self.generate_randn_image(img_height, img_width))
-                    for _ in range(batch_size)
-                    ]).to(self.device)
+                z = self._generate_random_images(img_height, img_width, batch_size)
                 outputs, _ = self.generator(z)
                 # TODO - check why torch.mps.driver_allocated_memory() explodes after this
-                outputs.detach()
-                fake_imgs = self._condition_image_output(outputs)
+                fake_imgs = [self._condition_image_output(g_output) for g_output in outputs]
                 outputs = self.discriminator(self._image_to_torch(fake_imgs))
                 fake_labels = torch.zeros(batch_size, 1, outputs.size(2), outputs.size(3)).to(self.device) # fake is labeled as 0
                 d_loss_fake = adversarial_loss(outputs, fake_labels)
@@ -160,13 +156,9 @@ class CGAN():
                 # Train generator
                 optimizer_G.zero_grad()
                 # TODO currently working for batch_size = 1 only, to be extended
-                z = torch.cat([
-                    self._condition_image_input(self.generate_randn_image(img_height, img_width))
-                    for _ in range(batch_size)
-                    ]).to(self.device)
+                z = self._generate_random_images(img_height, img_width, batch_size)
                 outputs, _ = self.generator(z)
-                outputs.detach()
-                fake_imgs = self._condition_image_output(outputs)
+                fake_imgs = [self._condition_image_output(g_output) for g_output in outputs]
                 outputs = self.discriminator(self._image_to_torch(fake_imgs))
 
                 real_labels = torch.ones(batch_size, 1, outputs.size(2), outputs.size(3)).to(self.device) # real is labeled as 1
@@ -182,6 +174,14 @@ class CGAN():
         print(f"Model {self.__class__.__name__} trained!")
         self._is_trained = True
         pass
+
+    def _generate_random_images(self, img_height: int, img_width: int, num_images: int):
+        rand_images = [self.generate_randn_image(img_height, img_width) for _ in range(num_images)]
+        z = torch.cat([
+                self._condition_image_input(rand_img)
+                for rand_img in rand_images
+                ]).to(self.device)
+        return z
 
     @staticmethod
     def generate_randn_image(img_height: int, img_width: int, num_channels: int = 3):
