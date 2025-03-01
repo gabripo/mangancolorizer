@@ -80,7 +80,7 @@ class MangaColorizer():
         if torch.backends.mps.is_available():
             self.device = 'mps'
         elif torch.cuda.is_available():
-            self.device = 'gpu'
+            self.device = 'cuda'
         else:
             self.device = 'cpu'
 
