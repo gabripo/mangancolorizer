@@ -38,6 +38,7 @@ class CGAN():
         self.weights_file_gen = None
         self.discriminator = None
 
+        self.print_device()
         self.set_denoiser()
         self.set_generator(weights_file_generator)
         self.set_discriminator()
@@ -271,6 +272,12 @@ class CGAN():
 
     def is_trained(self):
         return self._is_trained
+    
+    def print_device(self) -> bool:
+        if self.device:
+            print(f"Device for {self.__class__.__name__} is {self.device}")
+        else:
+            print(f"No device available for {self.__class__.__name__} !")
     
     @staticmethod
     def plot_pytorch_tensor_image(tensor_image: torch.Tensor):
