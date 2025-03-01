@@ -135,6 +135,7 @@ class CGAN():
                 d_loss = d_loss_real + d_loss_fake
                 d_loss.backward()
                 optimizer_D.step()
+                print(f"Loss for discriminator: {d_loss} (real {d_loss} | fake {d_loss_fake})")
                 self._empty_device_cache()
 
                 # Train generator
@@ -149,6 +150,7 @@ class CGAN():
 
                 g_loss.backward()
                 optimizer_G.step()
+                print(f"Loss for generator: {g_loss}")
                 self._empty_device_cache()
             
             print(f'Epoch [{epoch+1}/{num_epochs}], d_loss: {d_loss.item()}, g_loss: {g_loss.item()}')
