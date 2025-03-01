@@ -51,12 +51,12 @@ class MangaColorizer():
             )
         self.input_dir = input_dir
 
-    def train(self):
+    def train(self, save_weights: bool = False):
         if self.input_dataset is None or self.input_dir is None:
             print("Empty input dataset!")
             return
         self.model.load_data_paths(self.input_dataset, 'image')
-        self.model.train()
+        self.model.train(save_weights=save_weights)
 
     def infere(self, input, output_dir: str = None):
         if self.model is None:

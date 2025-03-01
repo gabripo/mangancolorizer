@@ -158,17 +158,32 @@ class CGAN():
             print(f'Epoch [{epoch+1}/{num_epochs}], d_loss: {d_loss.item()}, g_loss: {g_loss.item()}')
 
             if save_weights:
-                torch.save(self.generator.state_dict(), 'fine_tuned_generator_weights.pth')
-                torch.save(self.discriminator.state_dict(), 'fine_tuned_discriminator_weights.pth')
-
-                with zipfile.ZipFile('fine_tuned_model_weights.zip', 'w') as zipf:
-                    zipf.write('fine_tuned_generator_weights.pth')
-                    zipf.write('fine_tuned_discriminator_weights.pth')
+                self.save_weights(epoch=epoch)
                 
-
         print(f"Model {self.__class__.__name__} trained!")
         self._is_trained = True
         pass
+
+    def save_weights(self, epoch: int = None):
+        save_folder = os.path.join(os.getcwd(), 'weights')
+        os.makedirs(save_folder, exist_ok=True)
+
+        generator_weights_path = os.path.join(save_folder, 'fine_tuned_generator_weights.pth')
+        torch.save(self.generator.state_dict(), generator_weights_path)
+        discriminator_weights_path = os.path.join(save_folder, 'fine_tuned_discriminator_weights.pth')
+        torch.save(self.discriminator.state_dict(), discriminator_weights_path)
+
+        if epoch is None:
+            zipfile_name = os.path.join(save_folder, f'fine_tuned_model_weights_epoch.zip')
+        else:    
+            zipfile_name = os.path.join(save_folder, f'fine_tuned_model_weights_epoch_{epoch+1}.zip')
+        with zipfile.ZipFile(zipfile_name, 'w') as zipf:
+            zipf.write(generator_weights_path, os.path.basename(generator_weights_path))
+            zipf.write(discriminator_weights_path, os.path.basename(discriminator_weights_path))
+
+        if os.path.exists(zipfile_name):
+            os.remove(generator_weights_path)
+            os.remove(discriminator_weights_path)
 
     def _from_generator_output_to_images(self, generator_outputs: torch.Tensor, device: str = None):
         if device is None:
