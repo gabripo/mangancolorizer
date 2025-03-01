@@ -73,24 +73,7 @@ class CGAN():
             return
         if self.discriminator is None:
             # TODO same architecture as NetD in alacGAN
-            self.discriminator = torch.nn.Sequential(
-                torch.nn.Conv2d(3, 64, kernel_size=4, stride=2, padding=1),  # (887, 576) -> (443, 288)
-                torch.nn.LeakyReLU(0.2),
-                torch.nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),  # (443, 288) -> (221, 144)
-                torch.nn.BatchNorm2d(128),
-                torch.nn.LeakyReLU(0.2),
-                torch.nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),  # (221, 144) -> (110, 72)
-                torch.nn.BatchNorm2d(256),
-                torch.nn.LeakyReLU(0.2),
-                torch.nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1),  # (110, 72) -> (55, 36)
-                torch.nn.BatchNorm2d(512),
-                torch.nn.LeakyReLU(0.2),
-                torch.nn.Conv2d(512, 1024, kernel_size=4, stride=2, padding=1),  # (55, 36) -> (27, 18)
-                torch.nn.BatchNorm2d(1024),
-                torch.nn.LeakyReLU(0.2),
-                torch.nn.Conv2d(1024, 1, kernel_size=4, stride=1, padding=0),  # (27, 18) -> (24, 15)
-                torch.nn.Sigmoid()
-            ).to(self.device)
+            self.discriminator = Discriminator().to(self.device)
 
     def load_data_paths(self, data_paths: list[str], data_type: str):
         if data_type not in CGAN.supported_data_types:
@@ -137,7 +120,7 @@ class CGAN():
                 # Train discriminator
                 optimizer_D.zero_grad()
                 outputs = self.discriminator(imgs)
-                real_labels = torch.ones(batch_size, 1, outputs.size(2), outputs.size(3)).to(self.device) # real is labeled as 1
+                real_labels = torch.ones(batch_size, 1).to(self.device) # real is labeled as 1
                 d_loss_real = adversarial_loss(outputs, real_labels)
 
                 z = self._generate_random_images(img_height, img_width, batch_size)
@@ -145,7 +128,7 @@ class CGAN():
                 # TODO - check why torch.mps.driver_allocated_memory() explodes after this
                 fake_imgs = self._from_generator_output_to_images(outputs)
                 outputs = self.discriminator(fake_imgs)
-                fake_labels = torch.zeros(batch_size, 1, outputs.size(2), outputs.size(3)).to(self.device) # fake is labeled as 0
+                fake_labels = torch.zeros(batch_size, 1).to(self.device) # fake is labeled as 0
                 d_loss_fake = adversarial_loss(outputs, fake_labels)
 
                 d_loss = d_loss_real + d_loss_fake
@@ -403,3 +386,35 @@ class NetI(torch.nn.Module):
         images = F.avg_pool2d(images, 2, 2)
         images = images.mul(0.5).add(0.5).mul(255)
         return self.model(images.expand(-1, 3, 256, 256) - self.mean)
+    
+class Discriminator(torch.nn.Module):
+    def __init__(self):
+        super(Discriminator, self).__init__()
+        self.conv_layers = torch.nn.Sequential(
+            torch.nn.Conv2d(3, 64, kernel_size=4, stride=2, padding=1),
+            torch.nn.LeakyReLU(0.2),
+            torch.nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
+            torch.nn.BatchNorm2d(128),
+            torch.nn.LeakyReLU(0.2),
+            torch.nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
+            torch.nn.BatchNorm2d(256),
+            torch.nn.LeakyReLU(0.2),
+            torch.nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1),
+            torch.nn.BatchNorm2d(512),
+            torch.nn.LeakyReLU(0.2),
+            torch.nn.Conv2d(512, 1024, kernel_size=4, stride=2, padding=1),
+            torch.nn.BatchNorm2d(1024),
+            torch.nn.LeakyReLU(0.2)
+        )
+        self.adaptive_pool = torch.nn.AdaptiveAvgPool2d((1, 1))  # Adaptive pooling to handle varying input sizes
+        self.fc = torch.nn.Sequential(
+            torch.nn.Linear(1024, 1),
+            torch.nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        x = self.conv_layers(x)
+        x = self.adaptive_pool(x)
+        x = x.view(x.size(0), -1)  # Flatten the tensor
+        x = self.fc(x)
+        return x
