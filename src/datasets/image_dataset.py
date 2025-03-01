@@ -18,7 +18,7 @@ class ImageDataset(Dataset):
             '.png',
         }
         self.transformation = transformation
-        self.device = device
+        self.device = device if device is not None else 'cpu'
 
         self._pick_images(image_paths)
     
