@@ -141,10 +141,10 @@ class CGAN():
                 z = self._generate_random_images(img_height, img_width, batch_size)
                 outputs, _ = self.generator(z)
                 fake_imgs = self._from_generator_output_to_images(outputs)
-                outputs = [self.discriminator(self._image_to_torch(img)) for img in fake_imgs]
-
-                real_labels = torch.ones(batch_size, 1, outputs.size(2), outputs.size(3)).to(self.device) # real is labeled as 1
+                outputs = self.discriminator(fake_imgs)
+                real_labels = torch.ones(batch_size, 1).to(self.device) # real is labeled as 1
                 g_loss = adversarial_loss(outputs, real_labels)
+
                 g_loss.backward()
                 optimizer_G.step()
 
