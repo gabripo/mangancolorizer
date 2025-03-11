@@ -8,7 +8,7 @@ if __name__ == "__main__":
     if torch.backends.mps.is_available():
         device = 'mps'
     elif torch.cuda.is_available():
-        device = 'gpu'
+        device = 'cuda'
     else:
         device = 'cpu'
     generator_path = os.path.abspath(os.path.join(
